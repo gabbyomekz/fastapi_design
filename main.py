@@ -18,7 +18,7 @@ class Utensil(BaseModel):
 
 
 @app.post("/utensils")
-async def create_items(utensil: Utensil):
+async def create_utensil(utensil: Utensil):
     utensil_dict = utensil.model_dump()
     if utensil.tax:
         cost_with_tax = utensil.cost + utensil.tax
