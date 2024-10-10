@@ -42,4 +42,4 @@ async def get_user_utensil(
                 "description": "Utensils are very essential in the kitchen, can as well be dangerous"
             }
         )
-        return utensil
+    return utensil
