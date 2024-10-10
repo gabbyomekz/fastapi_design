@@ -8,7 +8,7 @@ app = FastAPI()
 
 # query params string validation in fastapi
 
-@app.get("utensils")
+@app.get("/utensils")
 async def read_utensils(
     q: str
     | None = Query(
