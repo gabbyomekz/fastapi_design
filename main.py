@@ -3,35 +3,43 @@ from fastapi import FastAPI
 
 app = FastAPI()
 
-# path parameters in fastapi
+# query parameters in fastapi
 
-@app.get("/users")
-async def list_users():
-    return {"message": "list users route"}
+cook_utensils_db = [{"utensil_name": "plates"}, {"utensil_name": "spoon"}, {"utensil_name": "fork"}]
 
 
-@app.get("/users/me")
-async def get_current_user():
-    return {"Message": "this is the current user"}
+@app.get("/utensils")
+async def list_utensils(skip: int = 0, limit: int = 15):
+    return cook_utensils_db[skip: skip + limit]
 
 
-@app.get("/users/{user_id}")
-async def get_user(user_id: str):
-    return {"user_id": user_id}
+@app.get("/utensils/{utensil_id}")
+async def get_utensil(
+    utensil_id: str, sample_query_param: str, q: str | None = None, short: bool = False
+):
+    utensil = {"utensil_id": utensil_id, "sample_query_param": sample_query_param}
+    if q:
+        utensil.update({"q": q})
+    if not short:
+        utensil.update(
+            {
+                "description": "Utensils are very essential in the kitchen, can as well be dangerous"
+            }
+        )
+    return utensil
 
 
-class vehicleEnum(str, Enum):
-    car = "car"
-    bus = "bus"
-    train = "train"
-
-
-@app.get("/vehicles/{vehicle_name}")
-async def get_vehicle(vehicle_name: vehicleEnum):
-    if vehicle_name == vehicleEnum.bus:
-        return {"vehicle_name": vehicle_name, "message": "commercial use, medium sized for short travels"}
-
-    if vehicle_name.value == "car":
-        return {
-            "vehicle_name": vehicle_name, "message": "personal use, small sized for family convenience"}
-    return {"vehicle_name": vehicle_name, "message": "commercial use, large sized for long distance travels"}
+@app.get("/users/{user_id}/utensils/{utensil_id}")
+async def get_user_utensil(
+    user_id: int, utensil_id: str, q: str | None = None, short: bool = False
+):
+    utensil = {"utensil_id": utensil_id, "owner_id": user_id}
+    if q:
+        utensil.update({"q": q})
+    if not short:
+        utensil.update(
+            {
+                "description": "Utensils are very essential in the kitchen, can as well be dangerous"
+            }
+        )
+        return utensil
