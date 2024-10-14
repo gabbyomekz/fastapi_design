@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Query, Path
+from datetime import datetime, time, timedelta
 
 from enum import Enum
+from uuid import UUID
 
-from pydantic import BaseModel
+from fastapi import Body, FastAPI, Query, Path, Cookie, Header
+from pydantic import BaseModel, Field, HttpUrl
 
 app = FastAPI()
 
@@ -155,3 +157,118 @@ async def read_utensils_validation(
     if q:
         results.update({"q": q})
     return results
+
+# body nested models in fastapi
+
+class Figure(BaseModel):
+    url: HttpUrl
+    name: str
+
+
+class Mineral(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    tax: float | None = None
+    tags: set[str] = []
+    figure: list[Figure] | None = None
+
+
+class Bid(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    minerals: list[Mineral]
+
+
+@app.put("/minerals/{mineral_id}")
+async def update_mineral(mineral_id: int, mineral: Mineral):
+    results = {"mineral_id": mineral_id, "mineral": mineral}
+    return results
+
+
+@app.post("/bids")
+async def create_bid(bid: Bid = Body(..., embed=True)):
+    return bid
+
+
+@app.post("/figures/multiple")
+async def create_multiple_figures(figures: list[Figure]):
+    return figures
+
+# requesst example data in fastapi
+
+class SportItem(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    make: str | None = None
+    tax: float | None = None
+
+@app.put("/sport_items/{sport_item_id}")
+async def update_sport_item(
+    sport_item_id: int,
+    sport_item: SportItem = Body(
+        ...,
+        examples={
+            "leg_normal": {
+                "summary": "A normal sport item for participating in football matches",
+                "description": "A sporting item that gives a normal leg fit",
+                "value": {
+                    "name": "boot",
+                    "description": "A very nice covering that protects the feet",
+                    "price": 80.56,
+                    "make": "leather",
+                    "tax": 1.52
+                }
+            },
+            "body_normal": {
+                "summary": "Other sport item necessary",
+                "description": "Use for easy identification of teammates",
+                "value": {"name": "jersey", "price": "50.65"}
+            }
+        }
+    )
+):
+    results = {"sport_item_id": sport_item_id, "sport_item": sport_item}
+    return results
+
+# Extra Data Types in fastapi
+
+@app.put("/sport_items/{sport_item_id}")
+async def read_sport_items(
+    sport_item_id: UUID,
+    start_date: datetime | None = Body(None),
+    end_date: datetime | None = Body(None),
+    repeat_at: time | None = Body(None),
+    process_after: timedelta | None = Body(None)
+):
+    start_process = start_date + process_after
+    duration = end_date - start_process
+    return {
+        "sport_item_id": sport_item_id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "repeat_at": repeat_at,
+        "process_after": process_after,
+        "start_process": start_process,
+        "duration": duration
+    }
+
+# Cookie and Header Parameters in fastapi
+
+@app.get("/sport_items")
+async def read_sport_items(
+    cookie_id: str | None = Cookie(None),
+    accept_encoding: str | None = Header(None),
+    sec_ch_ua: str | None = Header(None),
+    user_agent: str | None = Header(None),
+    x_token: list[str] | None = Header(None),
+):
+    return {
+        "cookie_id": cookie_id,
+        "Accept-Encoding": accept_encoding,
+        "sec-ch-ua": sec_ch_ua,
+        "User-Agent": user_agent,
+        "X-Token values": x_token,
+    }
