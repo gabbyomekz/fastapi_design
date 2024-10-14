@@ -1,43 +1,31 @@
+from datetime import datetime, time, timedelta
+
 from enum import Enum
+from uuid import UUID
 
 from fastapi import Body, FastAPI, Query, Path
 from pydantic import BaseModel, Field, HttpUrl
 
 app = FastAPI()
 
-# requesst example data
-
-class SportItem(BaseModel):
-    name: str
-    description: str | None = None
-    price: float
-    make: str | None = None
-    tax: float | None = None
+# Extra Data Types in fastapi
 
 @app.put("/sport_items/{sport_item_id}")
-async def update_sport_item(
-    sport_item_id: int,
-    sport_item: SportItem = Body(
-        ...,
-        examples={
-            "leg_normal": {
-                "summary": "A normal sport item for participating in football matches",
-                "description": "A sporting item that gives a normal leg fit",
-                "value": {
-                    "name": "boot",
-                    "description": "A very nice covering that protects the feet",
-                    "price": 80.56,
-                    "make": "leather",
-                    "tax": 1.52
-                }
-            },
-            "body_normal": {
-                "summary": "Other sport item necessary",
-                "description": "Use for easy identification of teammates",
-                "value": {"name": "jersey", "price": "50.65"}
-            }
-        }
-    )
+async def read_sport_items(
+    sport_item_id: UUID,
+    start_date: datetime | None = Body(None),
+    end_date: datetime | None = Body(None),
+    repeat_at: time | None = Body(None),
+    process_after: timedelta | None = Body(None)
 ):
-    results = {"sport_item_id": sport_item_id, "sport_item": sport_item}
-    return results
+    start_process = start_date + process_after
+    duration = end_date - start_process
+    return {
+        "sport_item_id": sport_item_id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "repeat_at": repeat_at,
+        "process_after": process_after,
+        "start_process": start_process,
+        "duration": duration
+    }
