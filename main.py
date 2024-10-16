@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import (
     Body,
+    Depends,
     FastAPI,
     Query,
     Path,
@@ -24,56 +25,87 @@ from fastapi.exception_handlers import (
     request_validation_exception_handler,
 )
 from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import HTMLResponse
 
 app = FastAPI()
 
-# path operation configuration
+# security first steps in fastapi
 
-class FashionItem(BaseModel):
-    name: str
-    description: str | None = None
-    price: float
-    tax: float | None = None
-    tags: set[str] = set()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-class Tags(Enum):
-    fashion_items = "fashion_items"
-    fashion_users = "fashion_users"
+fake_users_db = {
+    "janeblake": dict(
+        username="janeblake",
+        full_name="Jane Blake",
+        email="janeblake@example.com",
+        hashed_password="fakehashedsecret",
+        disabled=False,
+    ),
+    "segun": dict(
+        username="segun",
+        full_name="Segun Williams",
+        email="segun@example.com",
+        hashed_password="fakehashedsecret2",
+        disabled=True,
+    ),
+}
 
-@app.post(
-    "/fashion_items/",
-    response_model=FashionItem,
-    status_code=status.HTTP_201_CREATED,
-    tags=[Tags.fashion_items],
-    summary="Things in the fashion world that excites you",
-    description="Leather shoe",
-    # "name; description; price; tax; and a set of "
-    # "unique tags",
-    response_description="Hand made with comfy base"
-)
-async def create_fashion_item(fashion_item: FashionItem):
-    """
-    Create a fashion item with all the information:
+def fake_hash_password(password: str):
+    return f"fakehashed{password}"
 
-    - **name**: each item must have a name
-    - **description**: a long description
-    - **price**: required
-    - **tax**: if the item doesn't have tax, you can omit this
-    - **tags**: a set of unique tag strings for this item
-    """
-    return fashion_item
 
-@app.get("/fashion_items/", tags=[Tags.fashion_items])
-async def read_fashion_items():
-    return [{"name": "Leather Shoe", "price": 55}]
+class User(BaseModel):
+    username: str
+    email: str | None = None
+    full_name: str | None = None
+    disabled: bool | None = None
 
-@app.get("/fashion_users/", tags=[Tags.fashion_users])
-async def read_fashion_users():
-    return [{"username": "GlowUpDesigners"}]
+class UserInDB(User):
+    hashed_password: str
 
-@app.get("/elements/", tags=[Tags.fashion_items], deprecated=True)
-async def read_elements():
-    return [{"fashion_item_id": "Leather Shoe"}]
+def get_user(db, username: str):
+    if username in db:
+        user_dict = db[username]
+        return UserInDB(**user_dict)
+
+def fake_decode_token(token):
+    return get_user(fake_users_db, token)
+
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    user = fake_decode_token(token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    return user
+
+async def get_current_active_user(current_user: User = Depends(get_current_user)):
+    if current_user.disabled:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+@app.post("/token")
+async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user_dict = fake_users_db.get(form_data.username)
+    if not user_dict:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    user = UserInDB(**user_dict)
+    hashed_password = fake_hash_password(form_data.password)
+    if not hashed_password == user.hashed_password:
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+
+    return {"access_token": user.username, "token_type": "bearer"}
+
+@app.get("/users/me")
+async def get_me(current_user: User = Depends(get_current_active_user)):
+    return current_user
+
+@app.get("/items/")
+async def read_items(token: str = Depends(oauth2_scheme)):
+    return {"token": token}
