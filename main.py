@@ -3,19 +3,35 @@ from enum import Enum
 from typing import Literal, Union
 from uuid import UUID
 
-from fastapi import Body, FastAPI, Query, Path, Cookie, Header, status, Form
+from fastapi import (
+    Body,
+    FastAPI,
+    Query,
+    Path,
+    Cookie,
+    Header,
+    status,
+    Form,
+    File,
+    UploadFile,
+)
 from pydantic import BaseModel, Field, HttpUrl, EmailStr
+from starlette.responses import HTMLResponse
 
 app = FastAPI()
 
-# form data in fastapi
+# request forms and files in fastapi
 
-@app.post("/login/")
-async def login(username: str = Form(...), password: str = Body(...)):
-    print("password", password)
-    return {"username": username}
-
-@app.post("/login-json/")
-async def login_json(username: str = Body(...), password: str = Body(...)):
-    print("password", password)
-    return {"username": username}
+@app.post("/files/")
+async def create_file(
+    file: bytes = File(...),
+    another_file: UploadFile = File(...),
+    token: str = Form(...),
+    hi: str = Body(...)
+):
+    return {
+        "file_size": len(file),
+        "token": token,
+        "another_file_content_type": another_file.content_type,
+        "hi": hi
+    }
