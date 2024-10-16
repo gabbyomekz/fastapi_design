@@ -5,7 +5,6 @@ from uuid import UUID
 
 from fastapi import (
     Body,
-    Depends,
     FastAPI,
     Query,
     Path,
@@ -31,21 +30,50 @@ from starlette.responses import HTMLResponse
 
 app = FastAPI()
 
-# classes as dependencies in fastapi
+# path operation configuration
 
-fake_items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"}]
+class FashionItem(BaseModel):
+    name: str
+    description: str | None = None
+    price: float
+    tax: float | None = None
+    tags: set[str] = set()
 
-class CommonQueryParams:
-    def __init__(self, q: str | None = None, skip: int = 0, limit: int = 100):
-        self.q = q
-        self.skip = skip
-        self.limit = limit
+class Tags(Enum):
+    fashion_items = "fashion_items"
+    fashion_users = "fashion_users"
 
-@app.get("/items/{item_id}")
-async def read_items(commons: CommonQueryParams = Depends()):
-    response = {}
-    if commons.q:
-        response.update({"q": commons.q})
-    items = fake_items_db[commons.skip: commons.skip + commons.limit]
-    response.update({"items": items})
-    return response
+@app.post(
+    "/fashion_items/",
+    response_model=FashionItem,
+    status_code=status.HTTP_201_CREATED,
+    tags=[Tags.fashion_items],
+    summary="Things in the fashion world that excites you",
+    description="Leather shoe",
+    # "name; description; price; tax; and a set of "
+    # "unique tags",
+    response_description="Hand made with comfy base"
+)
+async def create_fashion_item(fashion_item: FashionItem):
+    """
+    Create a fashion item with all the information:
+
+    - **name**: each item must have a name
+    - **description**: a long description
+    - **price**: required
+    - **tax**: if the item doesn't have tax, you can omit this
+    - **tags**: a set of unique tag strings for this item
+    """
+    return fashion_item
+
+@app.get("/fashion_items/", tags=[Tags.fashion_items])
+async def read_fashion_items():
+    return [{"name": "Leather Shoe", "price": 55}]
+
+@app.get("/fashion_users/", tags=[Tags.fashion_users])
+async def read_fashion_users():
+    return [{"username": "GlowUpDesigners"}]
+
+@app.get("/elements/", tags=[Tags.fashion_items], deprecated=True)
+async def read_elements():
+    return [{"fashion_item_id": "Leather Shoe"}]
